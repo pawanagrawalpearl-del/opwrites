@@ -2,58 +2,118 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>opwrites - Public Live Notebook</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OPWRITES</title>
+    
+    <!-- Google Fonts: Bubble font for Header & Retro Serif for Erase Button -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Calistoga&family=Rubik+Bubbles&display=swap" rel="stylesheet">
+    
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
-            background: #0d1117;
-            color: #c9d1d9;
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #ffffff;
+            color: #000000;
+            font-family: system-ui, -apple-system, sans-serif;
             display: flex;
             flex-direction: column;
             height: 100vh;
             overflow: hidden;
         }
+
+        /* --- RETRO FUNKY YELLOW TOP BAR --- */
         header {
-            padding: 14px 24px;
-            background: #161b22;
+            background: #ffcc00;
+            color: #000000;
+            padding: 12px 24px;
+            font-family: 'Rubik Bubbles', cursive;
+            font-size: 2.2rem;
+            letter-spacing: 2px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 0.95rem;
-            border-bottom: 1px solid #30363d;
         }
-        .brand { font-weight: 700; color: #58a6ff; letter-spacing: 1px; }
-        #status { font-size: 0.85rem; color: #7ee787; display: flex; align-items: center; gap: 6px; }
-        #status::before { content: ""; width: 8px; height: 8px; background: #7ee787; border-radius: 50%; display: inline-block; }
-        
+
+        /* --- STATUS LIGHT: RED WHEN IDLE, ORANGE WHEN ACTIVE --- */
+        .status-dot {
+            width: 18px;
+            height: 18px;
+            background: #fe0a0a; /* Red when idle */
+            border: 2.5px solid #000000;
+            border-radius: 50%;
+            transition: background-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .status-dot.active {
+            background: #ff7a00; /* Orange when loading/writing */
+            box-shadow: 0 0 10px rgba(255, 122, 0, 0.9);
+            animation: pulseOrange 0.8s infinite alternate ease-in-out;
+        }
+
+        @keyframes pulseOrange {
+            from { transform: scale(1); opacity: 1; }
+            to { transform: scale(1.2); opacity: 0.7; }
+        }
+
+        /* --- FULL WHITE CANVAS --- */
         textarea {
             flex: 1;
             width: 100%;
-            background: #0d1117;
-            color: #e6edf3;
+            background: #ffffff;
+            color: #000000;
             border: none;
             outline: none;
-            padding: 30px;
-            font-size: 1.15rem;
-            line-height: 1.7;
+            padding: 24px;
+            font-size: 1.25rem;
+            line-height: 1.6;
             resize: none;
-            font-family: inherit;
+            font-family: "Times New Roman", Times, serif;
         }
-        textarea::placeholder { color: #484f58; }
+
+        /* --- SOLID RED ERASE BUTTON WITH BLACK BORDER --- */
+        #clearBtn {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #fe0a0a;
+            color: #000000;
+            border: 2.5px solid #000000;
+            padding: 10px 24px 14px 24px;
+            font-family: 'Calistoga', serif;
+            font-size: 1.4rem;
+            letter-spacing: 0.5px;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 3px 3px 0px #000000;
+            transition: transform 0.15s ease, opacity 0.2s ease, box-shadow 0.15s ease;
+        }
+
+        #clearBtn:hover {
+            opacity: 0.95;
+            transform: translate(-1px, -1px);
+            box-shadow: 4px 4px 0px #000000;
+        }
+
+        #clearBtn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 1px 1px 0px #000000;
+        }
     </style>
 </head>
 <body>
 
     <header>
-        <div class="brand">📖 OPWRITES</div>
-        <div id="status">Connected & Syncing Live</div>
+        <span>OPWRITES</span>
+        <div id="statusDot" class="status-dot" title="Red: Idle | Orange: Writing/Syncing"></div>
     </header>
 
-    <textarea id="notebook" placeholder="This is an open public page. Type anything, delete anything... it updates live for anyone viewing this link."></textarea>
+    <textarea id="notebook" placeholder="Type anything..." autofocus></textarea>
 
- <!-- Firebase SDK (CDN compat mode for GitHub Pages) -->
+    <button id="clearBtn">ERASE</button>
+
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
@@ -69,27 +129,37 @@
             measurementId: "G-4XCJLNXDSK"
         };
 
-        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         const noteRef = db.ref('shared_notebook/content');
 
         const notebook = document.getElementById('notebook');
+        const clearBtn = document.getElementById('clearBtn');
+        const statusDot = document.getElementById('statusDot');
+        
         let isRemoteUpdate = false;
+        let activeTimer = null;
 
-        // --- 1. RECEIVE UPDATES INSTANTLY ---
+        // Flash orange when writing or receiving changes
+        function triggerActiveState() {
+            statusDot.classList.add('active');
+            clearTimeout(activeTimer);
+            activeTimer = setTimeout(() => {
+                statusDot.classList.remove('active'); // Return to red (idle)
+            }, 600);
+        }
+
+        // --- 1. RECEIVE LIVE UPDATES ---
         noteRef.on('value', (snapshot) => {
             const data = snapshot.val() || "";
-            
-            // Only update the screen if the incoming text is different from what is already there
             if (data !== notebook.value) {
+                triggerActiveState();
                 const start = notebook.selectionStart;
                 const end = notebook.selectionEnd;
                 
                 isRemoteUpdate = true;
                 notebook.value = data;
                 
-                // Preserve cursor position if you are currently inside the box
                 if (document.activeElement === notebook) {
                     notebook.setSelectionRange(start, end);
                 }
@@ -97,11 +167,20 @@
             }
         });
 
-        // --- 2. SEND EVERY KEYSTROKE LIVE ---
+        // --- 2. SEND KEYSTROKES LIVE ---
         notebook.addEventListener('input', () => {
             if (!isRemoteUpdate) {
+                triggerActiveState();
                 noteRef.set(notebook.value);
             }
+        });
+
+        // --- 3. INSTANT ERASE ---
+        clearBtn.addEventListener('click', () => {
+            triggerActiveState();
+            notebook.value = "";
+            noteRef.set("");
+            notebook.focus();
         });
     </script>
 </body>
