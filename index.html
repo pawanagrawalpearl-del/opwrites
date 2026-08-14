@@ -53,12 +53,11 @@
 
     <textarea id="notebook" placeholder="This is an open public page. Type anything, delete anything... it updates live for anyone viewing this link."></textarea>
 
-    <!-- Firebase SDK (CDN compat mode for GitHub Pages) -->
+ <!-- Firebase SDK (CDN compat mode for GitHub Pages) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
     <script>
-        // Your exact Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyAJHDEgFVCPnwLWDOxdH2yitzMEhv7da2E",
             authDomain: "opwrites-c7ce6.firebaseapp.com",
@@ -76,20 +75,33 @@
         const noteRef = db.ref('shared_notebook/content');
 
         const notebook = document.getElementById('notebook');
-        let isLocalTyping = false;
+        let isRemoteUpdate = false;
 
-        // Listen for live updates from other users or devices
+        // --- 1. RECEIVE UPDATES INSTANTLY ---
         noteRef.on('value', (snapshot) => {
-            const data = snapshot.val();
-            // Don't overwrite what the current user is actively typing to prevent cursor jumps
-            if (data !== null && document.activeElement !== notebook) {
+            const data = snapshot.val() || "";
+            
+            // Only update the screen if the incoming text is different from what is already there
+            if (data !== notebook.value) {
+                const start = notebook.selectionStart;
+                const end = notebook.selectionEnd;
+                
+                isRemoteUpdate = true;
                 notebook.value = data;
+                
+                // Preserve cursor position if you are currently inside the box
+                if (document.activeElement === notebook) {
+                    notebook.setSelectionRange(start, end);
+                }
+                isRemoteUpdate = false;
             }
         });
 
-        // Send changes to Firebase whenever someone types or erases
+        // --- 2. SEND EVERY KEYSTROKE LIVE ---
         notebook.addEventListener('input', () => {
-            noteRef.set(notebook.value);
+            if (!isRemoteUpdate) {
+                noteRef.set(notebook.value);
+            }
         });
     </script>
 </body>
