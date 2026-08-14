@@ -3,66 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Infinite Public Notebook</title>
+    <title>opwrites - Public Live Notebook</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            background: #1e1e2e;
-            color: #cdd6f4;
-            font-family: 'Courier New', monospace;
+            background: #0d1117;
+            color: #c9d1d9;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             display: flex;
             flex-direction: column;
             height: 100vh;
+            overflow: hidden;
         }
         header {
-            padding: 12px 20px;
-            background: #181825;
+            padding: 14px 24px;
+            background: #161b22;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 0.9rem;
-            color: #a6adc8;
-            border-bottom: 1px solid #313244;
+            font-size: 0.95rem;
+            border-bottom: 1px solid #30363d;
         }
-        #status { color: #a6e3a1; font-weight: bold; }
+        .brand { font-weight: 700; color: #58a6ff; letter-spacing: 1px; }
+        #status { font-size: 0.85rem; color: #7ee787; display: flex; align-items: center; gap: 6px; }
+        #status::before { content: ""; width: 8px; height: 8px; background: #7ee787; border-radius: 50%; display: inline-block; }
+        
         textarea {
             flex: 1;
             width: 100%;
-            background: #1e1e2e;
-            color: #cdd6f4;
+            background: #0d1117;
+            color: #e6edf3;
             border: none;
             outline: none;
-            padding: 25px;
-            font-size: 1.1rem;
-            line-height: 1.6;
+            padding: 30px;
+            font-size: 1.15rem;
+            line-height: 1.7;
             resize: none;
             font-family: inherit;
         }
+        textarea::placeholder { color: #484f58; }
     </style>
 </head>
 <body>
 
     <header>
-        <span>📖 THE PUBLIC NOTEBOOK (Anyone can edit or erase)</span>
-        <span id="status">● Connected</span>
+        <div class="brand">📖 OPWRITES</div>
+        <div id="status">Connected & Syncing Live</div>
     </header>
 
-    <textarea id="notebook" placeholder="Start typing anything... whoever visits this page sees this live."></textarea>
+    <textarea id="notebook" placeholder="This is an open public page. Type anything, delete anything... it updates live for anyone viewing this link."></textarea>
 
-    <!-- Firebase Realtime Database SDKs -->
+    <!-- Firebase SDK (CDN compat mode for GitHub Pages) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
     <script>
-        // --- 1. YOUR FIREBASE CONFIG KEYS ---
+        // Your exact Firebase configuration
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT.firebaseapp.com",
-            databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
-            projectId: "YOUR_PROJECT",
-            storageBucket: "YOUR_PROJECT.appspot.com",
-            messagingSenderId: "YOUR_SENDER_ID",
-            appId: "YOUR_APP_ID"
+            apiKey: "AIzaSyAJHDEgFVCPnwLWDOxdH2yitzMEhv7da2E",
+            authDomain: "opwrites-c7ce6.firebaseapp.com",
+            databaseURL: "https://opwrites-c7ce6-default-rtdb.firebaseio.com",
+            projectId: "opwrites-c7ce6",
+            storageBucket: "opwrites-c7ce6.firebasestorage.app",
+            messagingSenderId: "762647484443",
+            appId: "1:762647484443:web:ba7d3eaac9dcffe00a80be",
+            measurementId: "G-4XCJLNXDSK"
         };
 
         // Initialize Firebase
@@ -73,16 +78,16 @@
         const notebook = document.getElementById('notebook');
         let isLocalTyping = false;
 
-        // --- 2. RECEIVE UPDATES FROM OTHER USERS ---
+        // Listen for live updates from other users or devices
         noteRef.on('value', (snapshot) => {
             const data = snapshot.val();
-            // Only update if the user isn't currently mid-keystroke to prevent cursor jumping
+            // Don't overwrite what the current user is actively typing to prevent cursor jumps
             if (data !== null && document.activeElement !== notebook) {
                 notebook.value = data;
             }
         });
 
-        // --- 3. SEND UPDATES WHEN TYPING OR ERASING ---
+        // Send changes to Firebase whenever someone types or erases
         notebook.addEventListener('input', () => {
             noteRef.set(notebook.value);
         });
